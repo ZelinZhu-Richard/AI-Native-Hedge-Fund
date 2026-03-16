@@ -75,3 +75,64 @@
 - Feature engineering pipeline
 - Technical indicators (RSI, MACD, Bollinger, etc.)
 - Feature store in DuckDB
+
+---
+
+# Project Meridian — Day 2 Summary
+
+## Implementation Checklist
+
+### Phase 1: Foundation
+- [x] `meridian/core/exceptions.py` — Added FeatureComputationError
+- [x] `meridian/config/constants.py` — Added 4 feature constants
+- [x] `meridian/features/registry.py` — FeatureConfig + FeatureRegistry singleton
+- [x] `meridian/features/base.py` — Abstract FeatureComputer, SingleTickerFeature, CrossSectionalFeature
+- [x] `meridian/features/__init__.py` — Public exports
+
+### Phase 2: Feature Computers (49 features)
+- [x] `meridian/features/technical.py` — 25 technical features (returns, RSI, MACD, momentum, Bollinger, SMA/EMA ratios, volume, OBV, VWAP)
+- [x] `meridian/features/volatility.py` — 10 volatility features (realized vol, Garman-Klass, Parkinson, vol regimes)
+- [x] `meridian/features/cross_sectional.py` — 8 cross-sectional features (ranks, sector-relative, breadth, dispersion)
+- [x] `meridian/features/macro.py` — 6 macro features (SPY returns/vol/drawdown, market dispersion)
+
+### Phase 3: Storage + Pipeline
+- [x] `meridian/features/store.py` — DuckDB feature store (long-format storage, wide-format retrieval)
+- [x] `meridian/features/pipeline.py` — Three-phase orchestrator with lookback buffer and fault tolerance
+
+### Phase 4: Tests (64 new)
+- [x] `tests/test_features/test_technical.py` — 16 tests
+- [x] `tests/test_features/test_volatility.py` — 11 tests
+- [x] `tests/test_features/test_cross_sectional.py` — 9 tests
+- [x] `tests/test_features/test_macro.py` — 9 tests
+- [x] `tests/test_features/test_store.py` — 12 tests
+- [x] `tests/test_features/test_z_pipeline.py` — 1 comprehensive end-to-end test
+- [x] `tests/test_features/test_lookahead.py` — 6 anti-lookahead tests
+
+### Phase 5: Integration
+- [x] `Makefile` — Added test-features, test-lookahead targets
+- [x] `scripts/setup_db.py` — Added FeatureStore.create_schema() call
+- [x] `tests/conftest.py` — Added 4 new fixtures (ohlcv_dataframe, long_ohlcv_dataframe, multi_ticker_ohlcv, feature_store)
+- [x] `plan.md` — Updated with Day 2 plan
+- [x] `summary.md` — Updated with Day 2 summary
+
+## Verification Results
+
+| Check | Result |
+|-------|--------|
+| `ruff check` | 0 errors |
+| `pytest` | **114/114 pass** (50 Day 1 + 64 Day 2) |
+| `coverage` | **84%** (target: >80%) |
+| Features registered | **49** (25 technical + 10 volatility + 8 cross-sectional + 6 macro) |
+| Max lookback | **315 days** (vol_regime_z_score) |
+| Anti-lookahead tests | **6/6 pass** (truncation invariance + NaN warmup + expanding causality) |
+
+## File Count
+~17 new files created, 5 existing files modified
+
+## Known Issues
+- DuckDB + Python 3.13: segfaults when creating/destroying multiple connections in same process. Workaround: consolidated pipeline test into single method, use executemany instead of DataFrame SQL.
+
+## What's Next (Day 3)
+- ML model foundation (MoE architecture)
+- Expert models: TFT, MAML, N-BEATS, Adversarial Transformer
+- Gating network for expert weighting

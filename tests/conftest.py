@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from meridian.data.storage.database import MeridianDatabase
 from meridian.data.storage.models import OHLCVBar
+from meridian.features.store import FeatureStore
 from tests.fixtures.sample_data import (
     generate_random_walk,
     inject_gap,
@@ -87,3 +89,55 @@ def mock_provider():
     provider.health_check.return_value = True
 
     return provider
+
+
+def _bars_to_dataframe(bars: list[OHLCVBar]) -> pd.DataFrame:
+    """Convert OHLCVBar list to DataFrame matching db.get_data output."""
+    records = [
+        {
+            "ticker": b.ticker,
+            "date": b.date,
+            "open": b.open,
+            "high": b.high,
+            "low": b.low,
+            "close": b.close,
+            "volume": b.volume,
+            "adj_close": b.adj_close,
+        }
+        for b in bars
+    ]
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["date"])
+    return df.sort_values("date").set_index("date")
+
+
+@pytest.fixture
+def ohlcv_dataframe(sample_ohlcv_bars) -> pd.DataFrame:
+    """Convert 100-bar OHLCVBar list to DataFrame (mimics db.get_data output)."""
+    return _bars_to_dataframe(sample_ohlcv_bars)
+
+
+@pytest.fixture
+def long_ohlcv_dataframe() -> pd.DataFrame:
+    """300-day DataFrame — enough for 200-day SMA warmup + 100 valid days."""
+    bars = generate_random_walk(ticker="LONG", num_days=300, seed=42)
+    return _bars_to_dataframe(bars)
+
+
+@pytest.fixture
+def multi_ticker_ohlcv() -> dict[str, pd.DataFrame]:
+    """5 tickers × 300 days each for cross-sectional testing."""
+    tickers = ["AAPL", "MSFT", "GOOG", "AMZN", "META"]
+    result = {}
+    for i, ticker in enumerate(tickers):
+        bars = generate_random_walk(ticker=ticker, num_days=300, seed=42 + i)
+        result[ticker] = _bars_to_dataframe(bars)
+    return result
+
+
+@pytest.fixture
+def feature_store(temp_database) -> FeatureStore:
+    """FeatureStore with schema created on temp DB."""
+    store = FeatureStore(temp_database)
+    store.create_schema()
+    return store

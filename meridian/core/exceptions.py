@@ -45,3 +45,7 @@ class ConfigurationError(MeridianError):
 
 class IngestionError(MeridianError):
     """Orchestration-level failures during data ingestion."""
+
+
+class FeatureComputationError(MeridianError):
+    """Feature computation failures (bad input, numerical errors)."""

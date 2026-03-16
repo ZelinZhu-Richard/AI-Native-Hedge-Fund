@@ -11,6 +11,7 @@ from pathlib import Path
 from meridian.config.settings import get_settings
 from meridian.core.logging import get_logger
 from meridian.data.storage.database import MeridianDatabase
+from meridian.features.store import FeatureStore
 
 logger = get_logger("setup_db")
 
@@ -27,6 +28,10 @@ def main() -> None:
     with MeridianDatabase(db_path) as db:
         db.create_schema()
 
+        # Create feature store schema
+        feature_store = FeatureStore(db)
+        feature_store.create_schema()
+
         # Verify tables exist
         tables = db.conn.execute(
             "SELECT table_name FROM information_schema.tables "
@@ -34,7 +39,10 @@ def main() -> None:
         ).fetchall()
         table_names = [t[0] for t in tables]
 
-        expected = ["ohlcv", "data_quality", "ticker_metadata", "ingestion_log"]
+        expected = [
+            "ohlcv", "data_quality", "ticker_metadata", "ingestion_log",
+            "feature_metadata", "feature_values",
+        ]
         for table in expected:
             if table in table_names:
                 logger.info("table verified", table=table)

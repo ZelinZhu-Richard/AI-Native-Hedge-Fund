@@ -32,3 +32,19 @@ NYSE_EXCHANGE_CODE = "XNYS"
 # validation checks (outlier detection, stale data, etc.). Prevents
 # false positives on newly listed or recently added tickers.
 MIN_DATA_POINTS_FOR_VALIDATION = 30
+
+# --- Feature engineering constants ---
+
+# 200-day SMA is the longest lookback in technical features.
+# Features within this warmup window are NaN, not partially computed.
+MAX_FEATURE_LOOKBACK_DAYS = 200
+
+# Trading days are ~71% of calendar days. When querying data for feature
+# computation, multiply lookback by this to ensure enough trading days.
+LOOKBACK_CALENDAR_BUFFER_MULTIPLIER = 1.5
+
+# Initial version tag for all features.
+DEFAULT_FEATURE_VERSION = 1
+
+# Annualization factor: ~252 trading days per year.
+TRADING_DAYS_PER_YEAR = 252

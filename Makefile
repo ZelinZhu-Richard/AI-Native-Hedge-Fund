@@ -1,4 +1,4 @@
-.PHONY: setup lint format test coverage clean db-reset
+.PHONY: setup lint format test test-features test-lookahead coverage clean db-reset
 
 setup:
 	pip install -e ".[dev]"
@@ -13,6 +13,12 @@ format:
 
 test:
 	pytest -v
+
+test-features:
+	pytest tests/test_features/ -v
+
+test-lookahead:
+	pytest tests/test_features/test_lookahead.py -v --tb=long
 
 coverage:
 	pytest --cov=meridian --cov-report=term-missing --cov-report=html
