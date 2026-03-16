@@ -1,0 +1,620 @@
+from __future__ import annotations
+
+"""S&P 500 universe definitions and sector mappings.
+
+This module provides a hardcoded mapping of S&P 500 ticker symbols to their
+GICS (Global Industry Classification Standard) sector names, along with
+helper functions for querying the universe.
+"""
+
+SP500_TICKERS: dict[str, str] = {
+    # -------------------------------------------------------------------------
+    # WARNING — SURVIVORSHIP BIAS
+    # -------------------------------------------------------------------------
+    # This dictionary is a POINT-IN-TIME snapshot of S&P 500 constituents as
+    # of early 2025. Companies are regularly added to and removed from the
+    # index. Using this fixed list for historical back-tests introduces
+    # survivorship bias: you will only be testing against companies that
+    # *survived* long enough to be in the index today, ignoring those that
+    # were previously included but later removed due to decline, acquisition,
+    # or restructuring. This tends to inflate back-tested returns and
+    # understate risk. For rigorous historical analysis, use a point-in-time
+    # constituent dataset that reflects index membership on each historical
+    # date.
+    # -------------------------------------------------------------------------
+
+    # =========================================================================
+    # Information Technology
+    # =========================================================================
+    "AAPL": "Information Technology",
+    "ACN": "Information Technology",
+    "ADBE": "Information Technology",
+    "ADI": "Information Technology",
+    "ADP": "Information Technology",
+    "ADSK": "Information Technology",
+    "AMAT": "Information Technology",
+    "AMD": "Information Technology",
+    "ANET": "Information Technology",
+    "ANSS": "Information Technology",
+    "APH": "Information Technology",
+    "ARM": "Information Technology",
+    "AVGO": "Information Technology",
+    "BR": "Information Technology",
+    "CDNS": "Information Technology",
+    "CDW": "Information Technology",
+    "CRM": "Information Technology",
+    "CRWD": "Information Technology",
+    "CSCO": "Information Technology",
+    "CTSH": "Information Technology",
+    "DELL": "Information Technology",
+    "ENPH": "Information Technology",
+    "EPAM": "Information Technology",
+    "FFIV": "Information Technology",
+    "FICO": "Information Technology",
+    "FSLR": "Information Technology",
+    "FTNT": "Information Technology",
+    "GDDY": "Information Technology",
+    "GEN": "Information Technology",
+    "GLW": "Information Technology",
+    "HPE": "Information Technology",
+    "HPQ": "Information Technology",
+    "IBM": "Information Technology",
+    "INTC": "Information Technology",
+    "INTU": "Information Technology",
+    "IT": "Information Technology",
+    "JNPR": "Information Technology",
+    "KEYS": "Information Technology",
+    "KLAC": "Information Technology",
+    "LDOS": "Information Technology",
+    "LRCX": "Information Technology",
+    "MCHP": "Information Technology",
+    "MPWR": "Information Technology",
+    "MRVL": "Information Technology",
+    "MSFT": "Information Technology",
+    "MSI": "Information Technology",
+    "MU": "Information Technology",
+    "NOW": "Information Technology",
+    "NTAP": "Information Technology",
+    "NVDA": "Information Technology",
+    "NXPI": "Information Technology",
+    "ON": "Information Technology",
+    "ORCL": "Information Technology",
+    "PANW": "Information Technology",
+    "PLTR": "Information Technology",
+    "PTC": "Information Technology",
+    "QCOM": "Information Technology",
+    "QRVO": "Information Technology",
+    "ROP": "Information Technology",
+    "SMCI": "Information Technology",
+    "SNPS": "Information Technology",
+    "SWKS": "Information Technology",
+    "TEL": "Information Technology",
+    "TER": "Information Technology",
+    "TRMB": "Information Technology",
+    "TXN": "Information Technology",
+    "TYL": "Information Technology",
+    "VRSN": "Information Technology",
+    "WDC": "Information Technology",
+    "ZBRA": "Information Technology",
+    "ZS": "Information Technology",
+
+    # =========================================================================
+    # Health Care
+    # =========================================================================
+    "A": "Health Care",
+    "ABBV": "Health Care",
+    "ABT": "Health Care",
+    "ALGN": "Health Care",
+    "AMGN": "Health Care",
+    "BAX": "Health Care",
+    "BDX": "Health Care",
+    "BIIB": "Health Care",
+    "BMY": "Health Care",
+    "BSX": "Health Care",
+    "CAH": "Health Care",
+    "CI": "Health Care",
+    "CNC": "Health Care",
+    "COR": "Health Care",
+    "CRL": "Health Care",
+    "CVS": "Health Care",
+    "DGX": "Health Care",
+    "DHR": "Health Care",
+    "DXCM": "Health Care",
+    "DVA": "Health Care",
+    "ELV": "Health Care",
+    "EW": "Health Care",
+    "GEHC": "Health Care",
+    "GILD": "Health Care",
+    "HCA": "Health Care",
+    "HOLX": "Health Care",
+    "HSIC": "Health Care",
+    "HUM": "Health Care",
+    "IDXX": "Health Care",
+    "ILMN": "Health Care",
+    "INCY": "Health Care",
+    "IQV": "Health Care",
+    "ISRG": "Health Care",
+    "JNJ": "Health Care",
+    "LH": "Health Care",
+    "LLY": "Health Care",
+    "MCK": "Health Care",
+    "MDT": "Health Care",
+    "MOH": "Health Care",
+    "MRK": "Health Care",
+    "MRNA": "Health Care",
+    "MTD": "Health Care",
+    "PFE": "Health Care",
+    "PODD": "Health Care",
+    "REGN": "Health Care",
+    "RVTY": "Health Care",
+    "STE": "Health Care",
+    "SYK": "Health Care",
+    "TECH": "Health Care",
+    "TFX": "Health Care",
+    "TMO": "Health Care",
+    "UHS": "Health Care",
+    "UNH": "Health Care",
+    "VTRS": "Health Care",
+    "WAT": "Health Care",
+    "WST": "Health Care",
+    "XRAY": "Health Care",
+    "ZBH": "Health Care",
+    "ZTS": "Health Care",
+
+    # =========================================================================
+    # Financials
+    # =========================================================================
+    "ACGL": "Financials",
+    "AFL": "Financials",
+    "AIG": "Financials",
+    "AIZ": "Financials",
+    "AJG": "Financials",
+    "ALL": "Financials",
+    "AMP": "Financials",
+    "AON": "Financials",
+    "AXP": "Financials",
+    "BAC": "Financials",
+    "BEN": "Financials",
+    "BK": "Financials",
+    "BLK": "Financials",
+    "BRK.B": "Financials",
+    "BRO": "Financials",
+    "BX": "Financials",
+    "C": "Financials",
+    "CB": "Financials",
+    "CBOE": "Financials",
+    "CFG": "Financials",
+    "CINF": "Financials",
+    "CME": "Financials",
+    "COF": "Financials",
+    "CPAY": "Financials",
+    "DFS": "Financials",
+    "ERIE": "Financials",
+    "FDS": "Financials",
+    "FI": "Financials",
+    "FITB": "Financials",
+    "FIS": "Financials",
+    "GL": "Financials",
+    "GPN": "Financials",
+    "GS": "Financials",
+    "HBAN": "Financials",
+    "HIG": "Financials",
+    "ICE": "Financials",
+    "IVZ": "Financials",
+    "JPM": "Financials",
+    "KEY": "Financials",
+    "KKR": "Financials",
+    "L": "Financials",
+    "MA": "Financials",
+    "MET": "Financials",
+    "MKTX": "Financials",
+    "MMC": "Financials",
+    "MS": "Financials",
+    "MSCI": "Financials",
+    "MTB": "Financials",
+    "NDAQ": "Financials",
+    "NTRS": "Financials",
+    "PFG": "Financials",
+    "PGR": "Financials",
+    "PNC": "Financials",
+    "PRU": "Financials",
+    "PYPL": "Financials",
+    "RE": "Financials",
+    "RF": "Financials",
+    "RJF": "Financials",
+    "SCHW": "Financials",
+    "SPGI": "Financials",
+    "STT": "Financials",
+    "SYF": "Financials",
+    "TROW": "Financials",
+    "TRV": "Financials",
+    "USB": "Financials",
+    "V": "Financials",
+    "WFC": "Financials",
+    "WRB": "Financials",
+    "WTW": "Financials",
+    "ZION": "Financials",
+
+    # =========================================================================
+    # Consumer Discretionary
+    # =========================================================================
+    "ABNB": "Consumer Discretionary",
+    "AMZN": "Consumer Discretionary",
+    "APTV": "Consumer Discretionary",
+    "AZO": "Consumer Discretionary",
+    "BBY": "Consumer Discretionary",
+    "BKNG": "Consumer Discretionary",
+    "BWA": "Consumer Discretionary",
+    "CCL": "Consumer Discretionary",
+    "CMG": "Consumer Discretionary",
+    "CZR": "Consumer Discretionary",
+    "DAL": "Consumer Discretionary",
+    "DECK": "Consumer Discretionary",
+    "DG": "Consumer Discretionary",
+    "DHI": "Consumer Discretionary",
+    "DLTR": "Consumer Discretionary",
+    "DPZ": "Consumer Discretionary",
+    "DRI": "Consumer Discretionary",
+    "EBAY": "Consumer Discretionary",
+    "ETSY": "Consumer Discretionary",
+    "EXPE": "Consumer Discretionary",
+    "F": "Consumer Discretionary",
+    "GM": "Consumer Discretionary",
+    "GPC": "Consumer Discretionary",
+    "GRMN": "Consumer Discretionary",
+    "HAS": "Consumer Discretionary",
+    "HD": "Consumer Discretionary",
+    "HLT": "Consumer Discretionary",
+    "KMX": "Consumer Discretionary",
+    "LEN": "Consumer Discretionary",
+    "LKQ": "Consumer Discretionary",
+    "LOW": "Consumer Discretionary",
+    "LULU": "Consumer Discretionary",
+    "LVS": "Consumer Discretionary",
+    "MAR": "Consumer Discretionary",
+    "MCD": "Consumer Discretionary",
+    "MGM": "Consumer Discretionary",
+    "MHK": "Consumer Discretionary",
+    "NKE": "Consumer Discretionary",
+    "NVR": "Consumer Discretionary",
+    "ORLY": "Consumer Discretionary",
+    "PHM": "Consumer Discretionary",
+    "POOL": "Consumer Discretionary",
+    "RCL": "Consumer Discretionary",
+    "RL": "Consumer Discretionary",
+    "ROST": "Consumer Discretionary",
+    "SBUX": "Consumer Discretionary",
+    "TGT": "Consumer Discretionary",
+    "TJX": "Consumer Discretionary",
+    "TPR": "Consumer Discretionary",
+    "TSCO": "Consumer Discretionary",
+    "TSLA": "Consumer Discretionary",
+    "ULTA": "Consumer Discretionary",
+    "VFC": "Consumer Discretionary",
+    "WYNN": "Consumer Discretionary",
+    "YUM": "Consumer Discretionary",
+
+    # =========================================================================
+    # Communication Services
+    # =========================================================================
+    "CHTR": "Communication Services",
+    "CMCSA": "Communication Services",
+    "DIS": "Communication Services",
+    "EA": "Communication Services",
+    "FOX": "Communication Services",
+    "FOXA": "Communication Services",
+    "GOOG": "Communication Services",
+    "GOOGL": "Communication Services",
+    "IPG": "Communication Services",
+    "LYV": "Communication Services",
+    "META": "Communication Services",
+    "MTCH": "Communication Services",
+    "NFLX": "Communication Services",
+    "NWS": "Communication Services",
+    "NWSA": "Communication Services",
+    "OMC": "Communication Services",
+    "T": "Communication Services",
+    "TMUS": "Communication Services",
+    "TTWO": "Communication Services",
+    "VZ": "Communication Services",
+    "WBD": "Communication Services",
+
+    # =========================================================================
+    # Industrials
+    # =========================================================================
+    "AOS": "Industrials",
+    "AXON": "Industrials",
+    "BA": "Industrials",
+    "BLDR": "Industrials",
+    "CARR": "Industrials",
+    "CAT": "Industrials",
+    "CHRW": "Industrials",
+    "CMI": "Industrials",
+    "CPRT": "Industrials",
+    "CSX": "Industrials",
+    "CTAS": "Industrials",
+    "DAY": "Industrials",
+    "DE": "Industrials",
+    "DOV": "Industrials",
+    "EFX": "Industrials",
+    "EMR": "Industrials",
+    "ETN": "Industrials",
+    "EXPD": "Industrials",
+    "FAST": "Industrials",
+    "FDX": "Industrials",
+    "FTV": "Industrials",
+    "GD": "Industrials",
+    "GE": "Industrials",
+    "GEV": "Industrials",
+    "GNRC": "Industrials",
+    "GWW": "Industrials",
+    "HII": "Industrials",
+    "HON": "Industrials",
+    "HUBB": "Industrials",
+    "HWM": "Industrials",
+    "IEX": "Industrials",
+    "IR": "Industrials",
+    "ITW": "Industrials",
+    "J": "Industrials",
+    "JBHT": "Industrials",
+    "JCI": "Industrials",
+    "LHX": "Industrials",
+    "LMT": "Industrials",
+    "MAS": "Industrials",
+    "MMM": "Industrials",
+    "NDSN": "Industrials",
+    "NOC": "Industrials",
+    "NSC": "Industrials",
+    "ODFL": "Industrials",
+    "OTIS": "Industrials",
+    "PCAR": "Industrials",
+    "PH": "Industrials",
+    "PNR": "Industrials",
+    "PWR": "Industrials",
+    "ROK": "Industrials",
+    "ROL": "Industrials",
+    "RSG": "Industrials",
+    "RTX": "Industrials",
+    "SNA": "Industrials",
+    "SWK": "Industrials",
+    "TDG": "Industrials",
+    "TT": "Industrials",
+    "TXT": "Industrials",
+    "UBER": "Industrials",
+    "UNP": "Industrials",
+    "UPS": "Industrials",
+    "URI": "Industrials",
+    "VLTO": "Industrials",
+    "VRSK": "Industrials",
+    "WAB": "Industrials",
+    "WM": "Industrials",
+    "XYL": "Industrials",
+
+    # =========================================================================
+    # Consumer Staples
+    # =========================================================================
+    "ADM": "Consumer Staples",
+    "BG": "Consumer Staples",
+    "CAG": "Consumer Staples",
+    "CHD": "Consumer Staples",
+    "CL": "Consumer Staples",
+    "CLX": "Consumer Staples",
+    "COST": "Consumer Staples",
+    "CPB": "Consumer Staples",
+    "EL": "Consumer Staples",
+    "GIS": "Consumer Staples",
+    "HRL": "Consumer Staples",
+    "HSY": "Consumer Staples",
+    "K": "Consumer Staples",
+    "KDP": "Consumer Staples",
+    "KHC": "Consumer Staples",
+    "KMB": "Consumer Staples",
+    "KO": "Consumer Staples",
+    "KR": "Consumer Staples",
+    "LW": "Consumer Staples",
+    "MDLZ": "Consumer Staples",
+    "MKC": "Consumer Staples",
+    "MNST": "Consumer Staples",
+    "MO": "Consumer Staples",
+    "PEP": "Consumer Staples",
+    "PG": "Consumer Staples",
+    "PM": "Consumer Staples",
+    "SJM": "Consumer Staples",
+    "STZ": "Consumer Staples",
+    "SYY": "Consumer Staples",
+    "TAP": "Consumer Staples",
+    "TSN": "Consumer Staples",
+    "WBA": "Consumer Staples",
+    "WMT": "Consumer Staples",
+
+    # =========================================================================
+    # Energy
+    # =========================================================================
+    "APA": "Energy",
+    "BKR": "Energy",
+    "COP": "Energy",
+    "CTRA": "Energy",
+    "CVX": "Energy",
+    "DVN": "Energy",
+    "EOG": "Energy",
+    "EQT": "Energy",
+    "FANG": "Energy",
+    "HAL": "Energy",
+    "KMI": "Energy",
+    "MPC": "Energy",
+    "MRO": "Energy",
+    "OKE": "Energy",
+    "OXY": "Energy",
+    "PSX": "Energy",
+    "SLB": "Energy",
+    "TRGP": "Energy",
+    "VLO": "Energy",
+    "WMB": "Energy",
+    "XOM": "Energy",
+
+    # =========================================================================
+    # Utilities
+    # =========================================================================
+    "AEE": "Utilities",
+    "AEP": "Utilities",
+    "AES": "Utilities",
+    "ATO": "Utilities",
+    "AWK": "Utilities",
+    "CEG": "Utilities",
+    "CMS": "Utilities",
+    "CNP": "Utilities",
+    "D": "Utilities",
+    "DTE": "Utilities",
+    "DUK": "Utilities",
+    "ED": "Utilities",
+    "EIX": "Utilities",
+    "ES": "Utilities",
+    "ETR": "Utilities",
+    "EVRG": "Utilities",
+    "EXC": "Utilities",
+    "FE": "Utilities",
+    "LNT": "Utilities",
+    "NEE": "Utilities",
+    "NI": "Utilities",
+    "NRG": "Utilities",
+    "PCG": "Utilities",
+    "PEG": "Utilities",
+    "PNW": "Utilities",
+    "PPL": "Utilities",
+    "SO": "Utilities",
+    "SRE": "Utilities",
+    "VST": "Utilities",
+    "WEC": "Utilities",
+    "XEL": "Utilities",
+
+    # =========================================================================
+    # Real Estate
+    # =========================================================================
+    "AMT": "Real Estate",
+    "ARE": "Real Estate",
+    "AVB": "Real Estate",
+    "BXP": "Real Estate",
+    "CCI": "Real Estate",
+    "CPT": "Real Estate",
+    "CSGP": "Real Estate",
+    "DLR": "Real Estate",
+    "DOC": "Real Estate",
+    "EQIX": "Real Estate",
+    "EQR": "Real Estate",
+    "ESS": "Real Estate",
+    "EXR": "Real Estate",
+    "FRT": "Real Estate",
+    "HST": "Real Estate",
+    "INVH": "Real Estate",
+    "IRM": "Real Estate",
+    "KIM": "Real Estate",
+    "MAA": "Real Estate",
+    "O": "Real Estate",
+    "PLD": "Real Estate",
+    "PSA": "Real Estate",
+    "REG": "Real Estate",
+    "SBAC": "Real Estate",
+    "SPG": "Real Estate",
+    "UDR": "Real Estate",
+    "VICI": "Real Estate",
+    "VTR": "Real Estate",
+    "WY": "Real Estate",
+
+    # =========================================================================
+    # Materials
+    # =========================================================================
+    "ALB": "Materials",
+    "AMCR": "Materials",
+    "APD": "Materials",
+    "BALL": "Materials",
+    "CE": "Materials",
+    "CF": "Materials",
+    "CTVA": "Materials",
+    "DD": "Materials",
+    "DOW": "Materials",
+    "ECL": "Materials",
+    "EMN": "Materials",
+    "FCX": "Materials",
+    "FMC": "Materials",
+    "IFF": "Materials",
+    "IP": "Materials",
+    "LIN": "Materials",
+    "LYB": "Materials",
+    "MLM": "Materials",
+    "MOS": "Materials",
+    "NEM": "Materials",
+    "NUE": "Materials",
+    "PKG": "Materials",
+    "PPG": "Materials",
+    "SEE": "Materials",
+    "SHW": "Materials",
+    "STLD": "Materials",
+    "VMC": "Materials",
+    "WRK": "Materials",
+}
+
+
+# =============================================================================
+# Test Universe — a small, diversified subset spanning all 11 GICS sectors
+# =============================================================================
+TEST_UNIVERSE: list[str] = [
+    # Information Technology
+    "AAPL", "MSFT",
+    # Health Care
+    "JNJ", "UNH",
+    # Financials
+    "JPM", "GS",
+    # Consumer Discretionary
+    "AMZN", "TSLA",
+    # Communication Services
+    "GOOGL", "META",
+    # Industrials
+    "CAT", "HON",
+    # Consumer Staples
+    "PG", "KO",
+    # Energy
+    "XOM", "CVX",
+    # Utilities
+    "NEE", "DUK",
+    # Real Estate
+    "AMT", "PLD",
+    # Materials
+    "LIN", "APD",
+]
+
+
+# =============================================================================
+# Helper functions
+# =============================================================================
+
+
+def get_sp500_tickers() -> list[str]:
+    """Return a sorted list of all S&P 500 ticker symbols."""
+    return sorted(SP500_TICKERS.keys())
+
+
+def get_sector_tickers(sector: str) -> list[str]:
+    """Return a sorted list of tickers belonging to *sector*.
+
+    Parameters
+    ----------
+    sector:
+        A GICS sector name (e.g. ``"Information Technology"``).
+
+    Raises
+    ------
+    ValueError
+        If *sector* is not a recognized GICS sector in the universe.
+    """
+    tickers = sorted(k for k, v in SP500_TICKERS.items() if v == sector)
+    if not tickers:
+        valid = ", ".join(get_sectors())
+        raise ValueError(
+            f"Unknown sector {sector!r}. Valid sectors: {valid}"
+        )
+    return tickers
+
+
+def get_sectors() -> list[str]:
+    """Return a sorted list of unique GICS sector names."""
+    return sorted(set(SP500_TICKERS.values()))
