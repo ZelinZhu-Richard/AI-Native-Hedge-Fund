@@ -20,12 +20,24 @@ Event-driven backtester with realistic transaction costs, slippage, and position
 ### 6. Live Trading (Sprint 4-5)
 Paper trading first, then live with circuit breakers and position limits.
 
+### 1b. Feature Engineering (Sprint 1, Day 2)
+49 features across 4 categories: technical (25), volatility (10), cross-sectional (8), macro (6). All features have anti-lookahead guarantees enforced via truncation-invariance tests.
+
+### 1c. Regime Detection (Sprint 1, Day 3)
+Rolling PCA compresses 49 features into principal components. HMM and KMeans cluster components into market regimes (e.g., crisis, steady bull). Anti-lookahead enforced: StandardScaler + PCA fit within each rolling window, never on future data.
+
 ## Data Flow
 
 ```
 Yahoo/AV API → Provider → Validator → DuckDB
                                          ↓
-                              Feature Engineering
+                              Feature Engineering (49 features)
+                                         ↓
+                              Rolling PCA (anti-lookahead)
+                                         ↓
+                              Clustering (HMM / KMeans)
+                                         ↓
+                              RegimeResult → Gating Network
                                          ↓
                               Expert ML Models
                                          ↓
@@ -44,6 +56,55 @@ Yahoo/AV API → Provider → Validator → DuckDB
 4. **Graceful degradation**: If a data provider fails, use cached data. If an expert model errors, exclude it and proceed with remaining experts. Never halt on a single component failure.
 5. **Validation at boundaries**: Pydantic models validate all data entering and leaving the system. Internal code trusts validated types.
 
+## Regime Detection Pipeline
+
+The regime detection pipeline is the foundation for the Mixture-of-Experts gating network (Day 11). The fund thesis — "markets misprice regime transitions" — requires detecting regimes before exploiting them.
+
+**Key components:**
+- `RollingPCA`: Compresses 49 features into ~10 principal components using a 252-day rolling window. Refits monthly (21 trading days). Anti-lookahead enforced via per-window StandardScaler + PCA fitting.
+- `MarketPCA`: Cross-sectional PCA on ticker returns to extract statistical factors.
+- `HMMRegimeDetector`: Gaussian HMM learns hidden regime states from PCA components. Captures temporal dynamics (transition probabilities).
+- `KMeansRegimeDetector`: Simpler clustering fallback. No temporal dynamics but more robust.
+- `RegimeDetector`: Unified pipeline orchestrating PCA → clustering → `RegimeResult`.
+- `RegimeResult`: Pydantic model with labels, probabilities, transitions, stats. JSON-serializable.
+
+**Design decisions:**
+| Decision | Choice | Rationale |
+|---|---|---|
+| Rolling vs expanding PCA | Rolling (252d) | Adapts to structural breaks |
+| Scaler scope | Per rolling window | Anti-lookahead guarantee |
+| HMM + KMeans | Both | HMM for temporal dynamics, KMeans as stable fallback |
+| Regime storage | In-memory only | Derived from features in DuckDB; re-deriving is cheap |
+
+### 1d. Backtesting Framework (Sprint 1, Day 4)
+Walk-forward backtesting engine with strict anti-lookahead guarantees. 504-day rolling train window, 63-day test window, 63-day step. SignalGenerator protocol decouples model implementation from backtesting infrastructure.
+
+**Key components:**
+- `WalkForwardEngine`: Orchestrates train/test windowing, signal generation, and execution with 1-day delay.
+- `SignalGenerator`: Protocol class — any model with `fit()` and `predict()` works.
+- `Portfolio`: Tracks positions, cash, equity curve, and executed trades.
+- `RealisticCostModel`: Almgren-Chriss square-root market impact + commission + spread.
+- `PerformanceMetrics`: Sharpe, Sortino, Calmar, drawdown, VaR/CVaR, rolling metrics.
+- `BacktestValidator`: Post-hoc checks for signal timing, data snooping, turnover, plausibility.
+- `BacktestReport`: Text summaries, strategy comparison tables, equity curve and monthly return plots.
+- 5 benchmarks: BuyAndHold, Momentum 12-1, MeanReversion, SPY, 60/40.
+
+**Anti-lookahead rules:**
+1. `fit()` receives ONLY training window data
+2. `predict()` receives ONLY test window data
+3. Signals at time t executed at time t+1 (NOT same day)
+4. Transaction costs applied at execution time
+5. Validators run after every backtest to double-check
+
+**Design decisions:**
+| Decision | Choice | Rationale |
+|---|---|---|
+| Walk-forward vs simple split | Walk-forward (504d/63d/63d) | Multiple OOS periods across different regimes |
+| Signal execution timing | Signal at t, execute at t+1 open | Prevents same-day lookahead |
+| Cost model default | RealisticCostModel (Almgren-Chriss) | Industry standard, conservative |
+| SignalGenerator interface | Python Protocol class | Any model with fit()/predict() works |
+| BacktestResult | Pydantic BaseModel | JSON-serializable, includes validation |
+
 ## Current State
 
-Sprint 1, Day 1: Market data pipeline operational. DuckDB storage, Yahoo Finance provider, NYSE calendar validation, data quality checks. ~20 test-universe tickers, expandable to full S&P 500.
+Sprint 1, Day 4: Market data pipeline, feature engineering (49 features), regime detection pipeline, and backtesting framework operational. DuckDB storage, Yahoo Finance provider, NYSE calendar validation, data quality checks. Rolling PCA + HMM/KMeans clustering with anti-lookahead guarantees. Walk-forward backtesting with 5 benchmarks, realistic cost models, and post-hoc validators. ~195 tests total (49 backtest + 146 prior).

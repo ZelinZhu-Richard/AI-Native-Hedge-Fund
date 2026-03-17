@@ -1,0 +1,13 @@
+services:
+  meridian:
+    build: .
+    volumes:
+      - ./data_store:/app/data_store
+      - ./.env:/app/.env
+    environment:
+      - MERIDIAN_ENV=production
+  test:
+    build: .
+    command: ["python", "-m", "pytest", "tests/", "-v"]
+    volumes:
+      - ./.env:/app/.env

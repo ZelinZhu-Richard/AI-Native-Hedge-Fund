@@ -134,3 +134,110 @@ Today we build the feature engineering pipeline that transforms raw OHLCV data i
 | Registry singleton | Auto-register on init | Features self-document; pipeline discovers them automatically |
 | Pipeline phases | 3-phase (ticker→cross→macro) | Each phase depends on prior: cross-sectional needs returns, macro needs dispersion |
 | DuckDB executemany | Parameterized INSERT | Avoids Python 3.13 segfault with DataFrame SQL operations |
+
+---
+
+# Day 3: PCA + Regime Clustering + Infrastructure
+
+## Context
+
+Day 3 of Sprint 1. Days 1-2 built data foundation (DuckDB, Yahoo Finance, validation, ingestion) and feature engineering (49 features across technical/volatility/cross-sectional/macro with anti-lookahead guarantees). 114 tests passing at 84% coverage.
+
+Today we build the regime detection pipeline that the gating network (Day 11) will consume to route between MoE experts. The fund thesis is "markets misprice regime transitions" — we need to detect regimes and transitions before we can exploit them.
+
+## Implementation Phases
+
+### Phase 1: Dependencies + Foundation
+- `pyproject.toml` — scikit-learn>=1.3, hmmlearn>=0.3, matplotlib moved to core deps
+- `meridian/config/constants.py` — PCA_DEFAULT_WINDOW_DAYS (252), PCA_DEFAULT_REFIT_FREQUENCY (21), PCA_DEFAULT_N_COMPONENTS (10), DEFAULT_N_REGIMES (4), MIN_PCA_OBSERVATIONS (50)
+- `meridian/core/exceptions.py` — RegimeDetectionError
+
+### Phase 2: Rolling PCA (anti-lookahead critical)
+- `meridian/regimes/pca.py` — RollingPCA (per-window StandardScaler+PCA, never global fit) + MarketPCA (cross-sectional factor extraction)
+
+### Phase 3: Clustering
+- `meridian/regimes/clustering.py` — HMMRegimeDetector (GaussianHMM with regime relabeling) + KMeansRegimeDetector (distance-based with pseudo-probabilities)
+
+### Phase 4: Detector + Result
+- `meridian/regimes/detector.py` — RegimeDetector (unified pipeline: features→PCA→clustering) + RegimeResult (Pydantic BaseModel, JSON-serializable)
+
+### Phase 5: Analysis + Visualization
+- `meridian/regimes/analysis.py` — RegimeAnalyzer (characterize, transitions, conditional performance)
+- `meridian/regimes/visualization.py` — Timeline, scatter, heatmap, performance plots
+
+### Phase 6: Tests (32 new)
+- `test_pca.py` — 12 tests including truncation invariance + scaler window verification
+- `test_clustering.py` — 10 tests including synthetic regime detection >90%
+- `test_detector.py` — 6 tests including serialization roundtrip
+- `test_lookahead_regimes.py` — 4 critical anti-lookahead tests
+
+### Phase 7: Infrastructure
+- `TODO.md`, `Dockerfile`, `docker-compose.yml`, Makefile additions, ARCHITECTURE.md update
+
+## Key Architectural Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Rolling vs expanding PCA | Rolling (252d window) | Adapts to structural breaks; expanding dominated by old regimes |
+| PCA refit frequency | Monthly (21 trading days) | Daily is noisy, quarterly misses transitions |
+| StandardScaler scope | Per rolling window | Anti-lookahead: global scaling leaks future distribution |
+| HMM + KMeans | Both implemented | HMM captures temporal dynamics, KMeans is stable fallback |
+| Regime label stability | Sort by mean component value | Ensures semantic consistency across refits |
+| Regime storage | In-memory only | Derived from features (in DuckDB); re-deriving is cheap |
+| Docker base | python:3.11-slim | Avoids DuckDB + Python 3.13 segfault |
+
+---
+
+# Day 4: Backtesting Framework
+
+## Context
+
+Day 4 of Sprint 1. Days 1-3 built data pipeline, 50+ features, and regime detection. The backtesting framework validates whether the fund works. Every model decision from Day 5+ depends on backtest results being trustworthy. Must prevent: lookahead bias, overfitting, unrealistic cost assumptions.
+
+## Implementation Phases
+
+### Phase 1: Foundation models (costs.py, portfolio.py, metrics.py) — from planning
+- `meridian/backtest/costs.py` — TradeCost, RealisticCostModel (Almgren-Chriss), ZeroCostModel, HighCostModel
+- `meridian/backtest/portfolio.py` — Portfolio, Position, Trade, EquityPoint
+- `meridian/backtest/metrics.py` — PerformanceMetrics (Sharpe, Sortino, drawdown, Calmar, VaR/CVaR, rolling)
+
+### Phase 2: SignalGenerator protocol + benchmarks
+- `meridian/backtest/benchmarks.py` — SignalGenerator Protocol, BuyAndHold, MomentumBaseline (12-1), MeanReversionBaseline, SPYBenchmark, SixtyFortyBenchmark
+
+### Phase 3: Walk-forward engine
+- `meridian/backtest/engine.py` — WalkForwardConfig, WindowResult, BacktestResult, WalkForwardEngine
+
+### Phase 4: Validators
+- `meridian/backtest/validators.py` — ValidationResult, BacktestValidator (signal timing, turnover, window consistency, data snooping, return plausibility)
+
+### Phase 5: Report generation
+- `meridian/backtest/report.py` — BacktestReport (text summary, comparison table, equity curve plot, monthly returns heatmap)
+
+### Phase 6: Public exports
+- `meridian/backtest/__init__.py` — All public exports
+
+### Phase 7: Tests (49 tests across 7 files)
+- `tests/test_backtest/test_costs.py` — 7 tests
+- `tests/test_backtest/test_portfolio.py` — 7 tests
+- `tests/test_backtest/test_metrics.py` — 8 tests
+- `tests/test_backtest/test_benchmarks.py` — 11 tests
+- `tests/test_backtest/test_engine.py` — 7 tests
+- `tests/test_backtest/test_validators.py` — 5 tests
+- `tests/test_backtest/test_integration.py` — 3 tests
+
+### Phase 8: Documentation + infrastructure
+- `Makefile` — Added test-backtest target
+- `TODO.md` — Marked Day 4 complete, updated competitive intel + decision log
+- `ARCHITECTURE.md` — Added backtesting framework section
+- `PLAN.md` — Appended Day 4 plan
+- `summary.md` — Appended Day 4 summary
+
+## Key Architectural Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Walk-forward vs simple split | Walk-forward (504d train, 63d test, 63d step) | Multiple OOS periods across different regimes |
+| Signal execution timing | Signal at t, execute at t+1 open | Prevents same-day lookahead |
+| Cost model default | RealisticCostModel (Almgren-Chriss sqrt impact) | Industry standard, conservative |
+| SignalGenerator protocol | Python Protocol class | Any model with fit()/predict() works |
+| BacktestResult | Pydantic BaseModel | JSON-serializable, includes validation results |

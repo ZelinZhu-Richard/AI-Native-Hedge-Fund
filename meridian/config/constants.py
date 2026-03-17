@@ -48,3 +48,29 @@ DEFAULT_FEATURE_VERSION = 1
 
 # Annualization factor: ~252 trading days per year.
 TRADING_DAYS_PER_YEAR = 252
+
+# --- Regime detection constants ---
+
+# Default PCA rolling window: 1 trading year.
+# 252 days gives stable covariance estimation while adapting
+# to structural breaks (COVID, rate hiking cycles).
+PCA_DEFAULT_WINDOW_DAYS = 252
+
+# PCA refits every 21 trading days (~1 month).
+# Monthly refits balance adaptation speed vs computational cost.
+# Daily refit is noisy; quarterly is too slow to catch transitions.
+PCA_DEFAULT_REFIT_FREQUENCY = 21
+
+# Default PCA components to retain.
+# 10 components typically capture 70-85% of variance in equity
+# features. Empirical research shows 10-15 is optimal.
+PCA_DEFAULT_N_COMPONENTS = 10
+
+# Default number of market regimes for clustering.
+# 4 regimes map empirically to: low-vol bull, high-vol bull,
+# low-vol bear, high-vol bear (crisis).
+DEFAULT_N_REGIMES = 4
+
+# Minimum observations for a valid PCA fit.
+# Need at least 2x n_components to avoid singular covariance.
+MIN_PCA_OBSERVATIONS = 50

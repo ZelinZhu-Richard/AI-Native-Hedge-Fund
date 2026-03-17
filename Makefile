@@ -1,4 +1,4 @@
-.PHONY: setup lint format test test-features test-lookahead coverage clean db-reset
+.PHONY: setup lint format test test-features test-regimes test-backtest test-lookahead test-lookahead-all coverage clean db-reset docker-build docker-test docker-ingest
 
 setup:
 	pip install -e ".[dev]"
@@ -17,8 +17,17 @@ test:
 test-features:
 	pytest tests/test_features/ -v
 
+test-regimes:
+	pytest tests/test_regimes/ -v
+
+test-backtest:
+	pytest tests/test_backtest/ -v
+
 test-lookahead:
 	pytest tests/test_features/test_lookahead.py -v --tb=long
+
+test-lookahead-all:
+	pytest tests/test_features/test_lookahead.py tests/test_regimes/test_lookahead_regimes.py -v --tb=long
 
 coverage:
 	pytest --cov=meridian --cov-report=term-missing --cov-report=html
@@ -35,3 +44,12 @@ db-reset:
 	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	rm -f data/meridian.duckdb data/meridian.duckdb.wal
 	python scripts/setup_db.py
+
+docker-build:
+	docker build -t meridian .
+
+docker-test:
+	docker compose run --rm test
+
+docker-ingest:
+	docker compose run --rm meridian

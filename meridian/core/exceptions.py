@@ -49,3 +49,7 @@ class IngestionError(MeridianError):
 
 class FeatureComputationError(MeridianError):
     """Feature computation failures (bad input, numerical errors)."""
+
+
+class RegimeDetectionError(MeridianError):
+    """Regime detection failures (insufficient data, convergence)."""
